@@ -551,7 +551,7 @@ body.about-active .app-shell {
     justify-content: center;
   }
 
-  .upload-section {
+  .upload-section:not(.hidden) {
     display: flex;
     justify-content: center;
   }
