@@ -468,21 +468,20 @@ fileInput.addEventListener('change', async (e) => {
 
 setWittyMuseumAddress();
 
-resetButton.addEventListener("click", () => {
-  currentReport = null;
-  uploadedImage.removeAttribute("src");
- // 470라인 근처부터 fileInput 관련 리스너를 아래 하나로 통합하세요.
+// --- script.js 하단 수정 시작 ---
+
+// 1. 파일 선택(더블클릭/모바일) 및 HEIC 변환 통합 리스너
 fileInput.addEventListener('change', async (e) => {
-    const file = e.target.files; // 단일 파일 추출
+    const file = e.target.files; //을 붙여야 에러가 안 납니다.
     if (!file) return;
 
-    // 즉시 로딩 화면으로 전환하여 사용자 피드백 제공
+    // 즉시 로딩 화면으로 전환
     switchSection("loadingSection");
     stageText.textContent = "이미지 분석 준비 중...";
 
     let finalFile = file;
 
-    // 1. HEIC 변환 로직 (모바일/아이폰 대응)
+    // 2. HEIC 변환 로직 (아이폰 대응)
     if (file.type === "image/heic" || file.name.toLowerCase().endsWith(".heic")) {
         stageText.textContent = "아이폰 규격 변환 중 (HEIC to JPG)...";
         try {
@@ -500,50 +499,51 @@ fileInput.addEventListener('change', async (e) => {
         }
     }
 
-    // 2. 최종 파일을 분석 프로세스에 전달
+    // 3. 분석 프로세스로 확실히 전달
     if (finalFile && finalFile.type.startsWith("image/")) {
         await processImage(finalFile);
     } else {
         alert("이미지 파일만 분석이 가능합니다.");
-        switchSection("uploadSection"); // 단순 화면 전환만 수행
+        switchSection("uploadSection");
     }
 });
 
-  const openImage = target.closest("img.archive-thumb[data-id]");
-  if (!(openImage instanceof Element)) return;
-  const selectedId = openImage.getAttribute("data-id");
-  if (!selectedId) return;
+// 4. 주소창 깔끔하게 정리 (필요시)
+setWittyMuseumAddress();
 
-  const archive = readArchive();
-  const selected = archive.find((item) => item.id === selectedId);
-  if (!selected) return;
-  applyReport(selected);
-  showSection("result");
+// 5. 다시 분석하기 버튼 (중복 리스너 제거 버전)
+resetButton.addEventListener("click", () => {
+    currentReport = null;
+    uploadedImage.removeAttribute("src");
+    fileInput.value = ""; // 입력값 초기화
+    switchSection("uploadSection");
 });
 
-aboutLink.addEventListener("click", (event) => {
-  event.preventDefault();
-  openAboutModal();
+// 6. 아카이브에서 이미지 클릭 시 결과 보기
+archiveList.addEventListener("click", (event) => {
+    const target = event.target;
+    const card = target.closest(".archive-thumb[data-id]");
+    if (!card) return;
+
+    const selectedId = card.getAttribute("data-id");
+    const archive = readArchive();
+    const selected = archive.find((item) => item.id === selectedId);
+    
+    if (selected) {
+        applyReport(selected);
+        switchSection("resultSection");
+    }
 });
 
-aboutCloseButton.addEventListener("click", () => {
-  closeAboutModal();
-});
+// 7. 기타 UI 이벤트
+aboutLink.addEventListener("click", (e) => { e.preventDefault(); openAboutModal(); });
+aboutCloseButton.addEventListener("click", closeAboutModal);
+aboutModal.addEventListener("click", (e) => { if (e.target.dataset.aboutClose === "backdrop") closeAboutModal(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAboutModal(); });
 
-aboutModal.addEventListener("click", (event) => {
-  const target = event.target;
-  if (!(target instanceof HTMLElement)) return;
-  if (target.dataset.aboutClose === "backdrop") {
-    closeAboutModal();
-  }
-});
-
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && aboutModal.classList.contains("is-visible")) {
-    closeAboutModal();
-  }
-});
-
+// 8. 로고 클릭 시 홈 이동
 document.querySelector('.logo').addEventListener('click', () => {
     switchSection('uploadSection');
 });
+
+// --- script.js 수정 끝 ---
