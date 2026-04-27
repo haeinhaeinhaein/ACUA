@@ -384,14 +384,14 @@ async function processImage(file) {
         reader.readAsDataURL(file);
     });
 
-    switchSection("loadingSection"); // 부드러운 전환 적용
+    switchSection("loadingSection");
     await runAnalysisAnimation();
     
     try {
         const report = buildReportData(imageSrc);
         applyReport(report);
         saveToArchive(report);
-        switchSection("resultSection"); // 부드러운 전환 적용
+        switchSection("resultSection");
     } catch (err) {
         console.error("분석 실패:", err);
         alert("분석 중 오류가 발생했습니다.");
@@ -427,18 +427,15 @@ dropZone.addEventListener("keydown", (event) => {
   }
 });
 
-// 470라인 근처의 모든 fileInput 관련 리스너를 지우고 아래 하나로 통합!
 fileInput.addEventListener('change', async (e) => {
     const file = e.target.files;
     if (!file) return;
 
-    // 즉시 로딩 화면으로 전환하여 사용자에게 반응 보여주기
     switchSection("loadingSection");
     stageText.textContent = "이미지 분석 준비 중...";
 
     let finalFile = file;
 
-    // 1. HEIC 변환 로직 (아이폰 대응 핵심)
     if (file.type === "image/heic" || file.name.toLowerCase().endsWith(".heic")) {
         stageText.textContent = "아이폰 규격 변환 중 (HEIC to JPG)...";
         try {
@@ -447,7 +444,6 @@ fileInput.addEventListener('change', async (e) => {
                 toType: "image/jpeg",
                 quality: 0.8
             });
-            // 변환된 파일을 새로운 File 객체로 생성
             finalFile = new File([convertedBlob], file.name.replace(/\.heic/i, ".jpg"), { type: "image/jpeg" });
         } catch (error) {
             console.error("HEIC 변환 실패:", error);
@@ -457,7 +453,6 @@ fileInput.addEventListener('change', async (e) => {
         }
     }
 
-    // 2. 최종 파일을 분석 프로세스에 확실히 전달
     if (finalFile.type.startsWith("image/")) {
         await processImage(finalFile);
     } else {
@@ -466,23 +461,15 @@ fileInput.addEventListener('change', async (e) => {
     }
 });
 
-setWittyMuseumAddress();
-
-// --- script.js 하단 통합 수정본 ---
-
-// 1. 파일 선택 및 HEIC 변환 통합 리스너 (중복 제거 및 오타 수정)
 fileInput.addEventListener('change', async (e) => {
-    // files으로 수정하여 첫 번째 파일을 정확히 가져옵니다.
-    const file = e.target.files; 
+    const file = e.target.files;
     if (!file) return;
 
-    // 즉시 로딩 화면으로 전환
     switchSection("loadingSection");
     stageText.textContent = "이미지 분석 준비 중...";
 
     let finalFile = file;
 
-    // 2. HEIC 변환 로직 (아이폰 대응)
     if (file.type === "image/heic" || file.name.toLowerCase().endsWith(".heic")) {
         stageText.textContent = "아이폰 규격 변환 중 (HEIC to JPG)...";
         try {
@@ -494,13 +481,12 @@ fileInput.addEventListener('change', async (e) => {
             finalFile = new File([convertedBlob], file.name.replace(/\.heic/i, ".jpg"), { type: "image/jpeg" });
         } catch (error) {
             console.error("HEIC 변환 실패:", error);
-            alert("이미지 변환 중 오류가 발생했습니다. 일반 사진 파일을 사용해 주세요.");
+            alert("이미지 변환 중 오류가 발생했습니다.");
             switchSection("uploadSection");
             return;
         }
     }
 
-    // 3. 분석 프로세스로 확실히 전달
     if (finalFile && finalFile.type.startsWith("image/")) {
         await processImage(finalFile);
     } else {
@@ -509,9 +495,6 @@ fileInput.addEventListener('change', async (e) => {
     }
 });
 
-// 4. 주소 강제 변환 코드(setWittyMuseumAddress)는 삭제되었습니다 (404 방지)
-
-// 5. 다시 분석하기 버튼
 resetButton.addEventListener("click", () => {
     currentReport = null;
     uploadedImage.removeAttribute("src");
@@ -519,7 +502,6 @@ resetButton.addEventListener("click", () => {
     switchSection("uploadSection");
 });
 
-// 6. 아카이브 이벤트 리스너
 archiveList.addEventListener("click", (event) => {
     const target = event.target;
     const card = target.closest(".archive-thumb[data-id]");
@@ -533,11 +515,8 @@ archiveList.addEventListener("click", (event) => {
     }
 });
 
-// 7. 모달 및 로고 클릭 이벤트
 aboutLink.addEventListener("click", (e) => { e.preventDefault(); openAboutModal(); });
 aboutCloseButton.addEventListener("click", closeAboutModal);
 aboutModal.addEventListener("click", (e) => { if (e.target.dataset.aboutClose === "backdrop") closeAboutModal(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAboutModal(); });
 document.querySelector('.logo').addEventListener('click', () => { switchSection('uploadSection'); });
-
-// --- 수정 끝 ---
