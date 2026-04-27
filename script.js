@@ -468,11 +468,12 @@ fileInput.addEventListener('change', async (e) => {
 
 setWittyMuseumAddress();
 
-// --- script.js 하단 수정 시작 ---
+// --- script.js 하단 통합 수정본 ---
 
-// 1. 파일 선택(더블클릭/모바일) 및 HEIC 변환 통합 리스너
+// 1. 파일 선택 및 HEIC 변환 통합 리스너 (중복 제거 및 오타 수정)
 fileInput.addEventListener('change', async (e) => {
-    const file = e.target.files; //을 붙여야 에러가 안 납니다.
+    // files으로 수정하여 첫 번째 파일을 정확히 가져옵니다.
+    const file = e.target.files; 
     if (!file) return;
 
     // 즉시 로딩 화면으로 전환
@@ -508,42 +509,35 @@ fileInput.addEventListener('change', async (e) => {
     }
 });
 
-// 4. 주소창 깔끔하게 정리 (필요시)
-setWittyMuseumAddress();
+// 4. 주소 강제 변환 코드(setWittyMuseumAddress)는 삭제되었습니다 (404 방지)
 
-// 5. 다시 분석하기 버튼 (중복 리스너 제거 버전)
+// 5. 다시 분석하기 버튼
 resetButton.addEventListener("click", () => {
     currentReport = null;
     uploadedImage.removeAttribute("src");
-    fileInput.value = ""; // 입력값 초기화
+    fileInput.value = ""; 
     switchSection("uploadSection");
 });
 
-// 6. 아카이브에서 이미지 클릭 시 결과 보기
+// 6. 아카이브 이벤트 리스너
 archiveList.addEventListener("click", (event) => {
     const target = event.target;
     const card = target.closest(".archive-thumb[data-id]");
     if (!card) return;
-
     const selectedId = card.getAttribute("data-id");
     const archive = readArchive();
     const selected = archive.find((item) => item.id === selectedId);
-    
     if (selected) {
         applyReport(selected);
         switchSection("resultSection");
     }
 });
 
-// 7. 기타 UI 이벤트
+// 7. 모달 및 로고 클릭 이벤트
 aboutLink.addEventListener("click", (e) => { e.preventDefault(); openAboutModal(); });
 aboutCloseButton.addEventListener("click", closeAboutModal);
 aboutModal.addEventListener("click", (e) => { if (e.target.dataset.aboutClose === "backdrop") closeAboutModal(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAboutModal(); });
+document.querySelector('.logo').addEventListener('click', () => { switchSection('uploadSection'); });
 
-// 8. 로고 클릭 시 홈 이동
-document.querySelector('.logo').addEventListener('click', () => {
-    switchSection('uploadSection');
-});
-
-// --- script.js 수정 끝 ---
+// --- 수정 끝 ---
