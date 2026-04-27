@@ -563,7 +563,7 @@ body.about-active .app-shell {
   .drop-zone {
     width: min(92vw, 520px);
     max-height: calc(100dvh - 210px);
-    margin-top: 0.5rem;
+    margin-top: 1.1rem;
     margin-left: auto;
     margin-right: auto;
   }
