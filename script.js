@@ -136,6 +136,15 @@ const archiveEmptyText = document.getElementById("archiveEmptyText");
 const archiveList = document.getElementById("archiveList");
 const aboutModal = document.getElementById("aboutModal");
 const aboutCloseButton = document.getElementById("aboutCloseButton");
+const logoHome = document.querySelector('.logo');
+logoHome.addEventListener('click', () => {
+    document.getElementById('resultSection').classList.add('hidden');
+    document.getElementById('loadingSection').classList.add('hidden');
+    document.getElementById('archiveSection').classList.add('hidden');
+    document.getElementById('uploadSection').classList.remove('hidden');
+    
+    document.getElementById('fileInput').value = "";
+});
 
 const ARCHIVE_STORAGE_KEY = "acua-analysis-archive";
 const ARCHIVE_LIMIT = 30;
@@ -395,8 +404,24 @@ dropZone.addEventListener("keydown", (event) => {
   }
 });
 
-fileInput.addEventListener("change", () => {
-  handleFiles(fileInput.files);
+fileInput.addEventListener('change', async (e) => {
+    let file = e.target.files;
+    if (!file) return;
+
+    if (file.type === "image/heic" || file.name.toLowerCase().endsWith(".heic")) {
+        try {
+            const convertedBlob = await heic2any({
+                blob: file,
+                toType: "image/jpeg",
+                quality: 0.7
+            });
+            file = new File([convertedBlob], file.name.replace(/\.heic/i, ".jpg"), { type: "image/jpeg" });
+        } catch (error) {
+            console.error("HEIC 변환 실패:", error);
+            alert("이미지 변환에 실패했습니다. 일반 JPG나 PNG를 사용해 주세요.");
+            return;
+        }
+    }
 });
 
 setWittyMuseumAddress();
