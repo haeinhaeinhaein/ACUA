@@ -284,18 +284,29 @@ function trySaveToArchive(report) {
   }
 }
 
-function showSection(sectionName) {
-  uploadSection.classList.toggle("hidden", sectionName !== "upload");
-  loadingSection.classList.toggle("hidden", sectionName !== "loading");
-  resultSection.classList.toggle("hidden", sectionName !== "result");
-  archiveSection.classList.toggle("hidden", sectionName !== "archive");
-
+async function showSection(sectionName, options = {}) {
+  const { smooth = false } = options;
   const sectionMap = {
     upload: uploadSection,
     loading: loadingSection,
     result: resultSection,
     archive: archiveSection
   };
+
+  if (smooth && currentSection !== sectionName) {
+    const currentVisibleSection = sectionMap[currentSection];
+    if (currentVisibleSection) {
+      currentVisibleSection.classList.add("section-fade-out");
+      await wait(180);
+      currentVisibleSection.classList.remove("section-fade-out");
+    }
+  }
+
+  uploadSection.classList.toggle("hidden", sectionName !== "upload");
+  loadingSection.classList.toggle("hidden", sectionName !== "loading");
+  resultSection.classList.toggle("hidden", sectionName !== "result");
+  archiveSection.classList.toggle("hidden", sectionName !== "archive");
+
   const targetSection = sectionMap[sectionName];
   if (targetSection && currentSection !== sectionName) {
     targetSection.classList.remove("section-animate-in");
@@ -314,7 +325,7 @@ function formatArchiveDate(ts) {
 }
 
 function openAboutModal() {
-  aboutModal.classList.remove("hidden");
+  document.body.classList.add("about-active");
   requestAnimationFrame(() => {
     aboutModal.classList.add("is-visible");
   });
@@ -322,11 +333,7 @@ function openAboutModal() {
 
 function closeAboutModal() {
   aboutModal.classList.remove("is-visible");
-  window.setTimeout(() => {
-    if (!aboutModal.classList.contains("is-visible")) {
-      aboutModal.classList.add("hidden");
-    }
-  }, 240);
+  document.body.classList.remove("about-active");
 }
 
 function renderArchiveList() {
@@ -562,6 +569,7 @@ fileInput.addEventListener("change", () => {
 });
 
 setWittyMuseumAddress();
+aboutModal.classList.remove("hidden");
 
 resetButton.addEventListener("click", () => {
   analysisRunId += 1;
@@ -572,13 +580,13 @@ resetButton.addEventListener("click", () => {
   progressBar.style.width = "0%";
 });
 
-homeLink.addEventListener("click", () => {
+homeLink.addEventListener("click", async () => {
   analysisRunId += 1;
   currentReport = null;
   uploadedImage.removeAttribute("src");
   fileInput.value = "";
   closeAboutModal();
-  showSection("upload");
+  await showSection("upload", { smooth: true });
   progressBar.style.width = "0%";
 });
 

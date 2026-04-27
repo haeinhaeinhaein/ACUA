@@ -23,6 +23,17 @@ body {
   min-height: 100vh;
   display: grid;
   grid-template-rows: auto 1fr auto;
+  filter: blur(0);
+  transition: filter 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: filter;
+  contain: paint;
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body.about-active .app-shell {
+  filter: blur(4px);
 }
 
 .site-header {
@@ -52,14 +63,23 @@ body {
 .menu a {
   color: var(--ink);
   text-decoration: none;
-  font-size: 0.85rem;
-  letter-spacing: 0.03em;
-  transition: color 0.2s ease, text-decoration-color 0.2s ease;
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  transition: color 0.3s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.3s cubic-bezier(0.22, 1, 0.36, 1), transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  min-height: 52px;
+  padding: 0 0.68rem;
+  border-radius: 50%;
 }
 
 .menu a:hover {
-  color: #444444;
-  text-decoration: underline;
+  color: #ffffff;
+  background: #0a0a0a;
+  transform: translateY(-1px) scale(1.015);
 }
 
 .main-content {
@@ -78,6 +98,10 @@ body {
 
 .section-animate-in {
   animation: sectionFadeSlideIn 0.28s ease;
+}
+
+.section-fade-out {
+  animation: sectionFadeOut 0.18s ease forwards;
 }
 
 .drop-zone {
@@ -319,15 +343,15 @@ body {
 
 .archive-delete-button {
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.98);
   color: #111111;
-  padding: 0.35rem;
+  padding: 0.4rem;
   font: inherit;
   cursor: pointer;
   border-radius: 999px;
   position: absolute;
-  right: 0.75rem;
-  bottom: 0.65rem;
+  right: 0.7rem;
+  bottom: 0.6rem;
 }
 
 .archive-delete-button:hover {
@@ -338,17 +362,17 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 26px;
-  min-width: 26px;
-  padding: 0.25rem;
+  min-height: 30px;
+  min-width: 30px;
+  padding: 0.28rem;
 }
 
 .archive-icon {
-  width: 14px;
-  height: 14px;
+  width: 17px;
+  height: 17px;
   stroke: currentColor;
   fill: none;
-  stroke-width: 1.6;
+  stroke-width: 1.9;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -359,7 +383,7 @@ body {
   z-index: 1000;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.24s ease;
+  transition: opacity 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .about-modal.is-visible {
@@ -370,8 +394,13 @@ body {
 .about-modal-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(255, 255, 255, 0.22);
-  backdrop-filter: blur(5px);
+  background: rgba(255, 255, 255, 0.16);
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.about-modal.is-visible .about-modal-backdrop {
+  opacity: 1;
 }
 
 .about-modal-panel {
@@ -382,7 +411,23 @@ body {
   border: 1px solid #000000;
   background: #ffffff;
   padding: 2rem 2rem 1.6rem;
-  animation: aboutFadeIn 0.28s ease;
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.62s cubic-bezier(0.16, 1, 0.3, 1), transform 0.62s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: 0.04s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about-modal,
+  .about-modal-backdrop,
+  .about-modal-panel {
+    transition: none !important;
+  }
+}
+
+.about-modal.is-visible .about-modal-panel {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .about-modal-close {
@@ -453,17 +498,6 @@ body {
   }
 }
 
-@keyframes aboutFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @keyframes sectionFadeSlideIn {
   from {
     opacity: 0;
@@ -472,6 +506,17 @@ body {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes sectionFadeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
   }
 }
 
