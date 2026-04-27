@@ -377,21 +377,26 @@ async function runAnalysisAnimation() {
 }
 
 async function processImage(file) {
-  const imageSrc = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+    const imageSrc = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
 
-  showSection("loading");
-
-  await runAnalysisAnimation();
-  const report = buildReportData(imageSrc);
-  applyReport(report);
-  saveToArchive(report);
-
-  showSection("result");
+    switchSection("loadingSection"); // 부드러운 전환 적용
+    await runAnalysisAnimation();
+    
+    try {
+        const report = buildReportData(imageSrc);
+        applyReport(report);
+        saveToArchive(report);
+        switchSection("resultSection"); // 부드러운 전환 적용
+    } catch (err) {
+        console.error("분석 실패:", err);
+        alert("분석 중 오류가 발생했습니다.");
+        switchSection("uploadSection");
+    }
 }
 
 function handleFiles(fileList) {
@@ -423,10 +428,15 @@ dropZone.addEventListener("keydown", (event) => {
 });
 
 fileInput.addEventListener('change', async (e) => {
-    let file = e.target.files;
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    let file = files;
 
+    // 1. HEIC 변환 로직 (모바일 대응)
     if (file.type === "image/heic" || file.name.toLowerCase().endsWith(".heic")) {
+        stageText.textContent = "아이폰 이미지 변환 중..."; 
+        showSection("loading"); // 변환 중에도 로딩 화면 표시
         try {
             const convertedBlob = await heic2any({
                 blob: file,
@@ -437,8 +447,14 @@ fileInput.addEventListener('change', async (e) => {
         } catch (error) {
             console.error("HEIC 변환 실패:", error);
             alert("이미지 변환에 실패했습니다. 일반 JPG나 PNG를 사용해 주세요.");
+            showSection("upload");
             return;
         }
+    }
+
+    // 2. 분석 프로세스 실행
+    if (file.type.startsWith("image/")) {
+        processImage(file);
     }
 });
 
