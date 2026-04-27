@@ -428,33 +428,39 @@ dropZone.addEventListener("keydown", (event) => {
 });
 
 fileInput.addEventListener('change', async (e) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    
-    let file = files;
+    const file = e.target.files;
+    if (!file) return;
 
-    // 1. HEIC 변환 로직 (모바일 대응)
+    // 로딩 화면으로 즉시 전환
+    switchSection("loadingSection");
+    stageText.textContent = "이미지 준비 중...";
+
+    let finalFile = file;
+
+    // 2. HEIC 변환 로직 (아이폰 대응)
     if (file.type === "image/heic" || file.name.toLowerCase().endsWith(".heic")) {
-        stageText.textContent = "아이폰 이미지 변환 중..."; 
-        showSection("loading"); // 변환 중에도 로딩 화면 표시
+        stageText.textContent = "아이폰 이미지 변환 중 (HEIC)...";
         try {
             const convertedBlob = await heic2any({
                 blob: file,
                 toType: "image/jpeg",
-                quality: 0.7
+                quality: 0.8
             });
-            file = new File([convertedBlob], file.name.replace(/\.heic/i, ".jpg"), { type: "image/jpeg" });
+            finalFile = new File([convertedBlob], file.name.replace(/\.heic/i, ".jpg"), { type: "image/jpeg" });
         } catch (error) {
-            console.error("HEIC 변환 실패:", error);
-            alert("이미지 변환에 실패했습니다. 일반 JPG나 PNG를 사용해 주세요.");
-            showSection("upload");
+            console.error("HEIC 변환 에러:", error);
+            alert("이미지 변환에 실패했습니다. 일반 사진을 사용해 주세요.");
+            switchSection("uploadSection");
             return;
         }
     }
 
-    // 2. 분석 프로세스 실행
-    if (file.type.startsWith("image/")) {
-        processImage(file);
+    // 3. 분석 프로세스 시작
+    if (finalFile.type.startsWith("image/")) {
+        await processImage(finalFile);
+    } else {
+        alert("이미지 파일만 업로드 가능합니다.");
+        switchSection("uploadSection");
     }
 });
 
