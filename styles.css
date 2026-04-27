@@ -98,6 +98,7 @@ body.about-active .app-shell {
 .result-section,
 .archive-section {
   width: min(1100px, 100%);
+  margin-inline: auto;
 }
 
 .section-animate-in {
@@ -484,6 +485,9 @@ body.about-active .app-shell {
   color: var(--muted);
   font-size: 0.75rem;
   text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .hidden {
@@ -544,6 +548,12 @@ body.about-active .app-shell {
     align-items: flex-start;
     padding: 1.25rem 1rem;
     overflow-y: auto;
+    justify-content: center;
+  }
+
+  .upload-section {
+    display: flex;
+    justify-content: center;
   }
 
   .result-grid {
@@ -554,6 +564,13 @@ body.about-active .app-shell {
     width: min(92vw, 520px);
     max-height: calc(100dvh - 210px);
     margin-top: 0.5rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .site-footer {
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
 
   .stage-text {
