@@ -281,6 +281,24 @@ function showSection(sectionName) {
   archiveSection.classList.toggle("hidden", sectionName !== "archive");
 }
 
+function switchSection(targetSectionId) {
+    const sections = ['uploadSection', 'loadingSection', 'resultSection', 'archiveSection'];
+    
+    sections.forEach(id => {
+        const section = document.getElementById(id);
+        if (id === targetSectionId) {
+            section.classList.remove('hidden');
+            section.classList.add('section-fade');
+            
+            setTimeout(() => {
+                section.classList.remove('section-fade');
+            }, 600);
+        } else {
+            section.classList.add('hidden');
+        }
+    });
+}
+
 function formatArchiveDate(ts) {
   return new Intl.DateTimeFormat("ko-KR", {
     dateStyle: "medium",
@@ -492,4 +510,8 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && aboutModal.classList.contains("is-visible")) {
     closeAboutModal();
   }
+});
+
+document.querySelector('.logo').addEventListener('click', () => {
+    switchSection('uploadSection');
 });
