@@ -199,6 +199,9 @@ let currentReport = null;
 let currentSection = "upload";
 let isProcessing = false;
 let analysisRunId = 0;
+let suppressFilePickerUntil = 0;
+let isFilePickerOpen = false;
+let suppressPickerForDragUntil = 0;
 
 function pickRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -368,9 +371,7 @@ function trySaveToArchive(report) {
   try {
     saveToArchive(report);
   } catch (error) {
-    // localStorage quota can be exceeded by large base64 images.
-    // Archive save should not block showing analysis result.
-    console.warn("아카이브 저장 실패:", error);
+    throw error;
   }
 }
 
@@ -538,9 +539,14 @@ function loadImageElement(src) {
 }
 
 async function compressImageForArchive(imageSrc) {
+  return compressImageForArchiveWithOptions(imageSrc, { maxLongEdge: 1600, quality: 0.88 });
+}
+
+async function compressImageForArchiveWithOptions(imageSrc, options = {}) {
   try {
     const img = await loadImageElement(imageSrc);
-    const maxLongEdge = 1600;
+    const maxLongEdge = Number(options.maxLongEdge) || 1600;
+    const quality = Number(options.quality) || 0.88;
     const longEdge = Math.max(img.naturalWidth, img.naturalHeight);
     const scale = longEdge > maxLongEdge ? maxLongEdge / longEdge : 1;
     const targetWidth = Math.max(1, Math.round(img.naturalWidth * scale));
@@ -556,7 +562,7 @@ async function compressImageForArchive(imageSrc) {
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
 
-    const compressed = canvas.toDataURL("image/jpeg", 0.88);
+    const compressed = canvas.toDataURL("image/jpeg", quality);
     if (!compressed || compressed.length < 128) return imageSrc;
     return compressed;
   } catch (error) {
@@ -606,8 +612,25 @@ async function processImage(file) {
 
     const report = buildReportData(imageSrc);
     applyReport(report);
-    const archiveReport = await createArchiveReport(report);
-    trySaveToArchive(archiveReport);
+    try {
+      const archiveReport = await createArchiveReport(report);
+      trySaveToArchive(archiveReport);
+    } catch (archiveError) {
+      // Retry once with a much smaller preview to avoid localStorage quota failures.
+      try {
+        const fallbackImageSrc = await compressImageForArchiveWithOptions(report.imageSrc, {
+          maxLongEdge: 900,
+          quality: 0.62
+        });
+        trySaveToArchive({
+          ...report,
+          imageSrc: fallbackImageSrc
+        });
+      } catch (retryError) {
+        // Archive save should never block showing analysis result.
+        console.warn("아카이브 저장 실패:", retryError || archiveError);
+      }
+    }
 
     showSection("result");
   } catch (error) {
@@ -627,8 +650,28 @@ function handleFiles(fileList) {
   processImage(file);
 }
 
+function openFilePicker() {
+  if (isFilePickerOpen) return;
+  if (Date.now() < suppressPickerForDragUntil) return;
+  isFilePickerOpen = true;
+  // Release picker lock after the native dialog returns focus to the page.
+  const releasePickerLock = () => {
+    window.setTimeout(() => {
+      isFilePickerOpen = false;
+    }, 250);
+  };
+  window.addEventListener("focus", releasePickerLock, { once: true });
+  fileInput.value = "";
+  fileInput.click();
+}
+
+function markDragInteraction() {
+  suppressPickerForDragUntil = Date.now() + 4000;
+}
+
 dropZone.addEventListener("dragover", (event) => {
   event.preventDefault();
+  markDragInteraction();
   dropZone.classList.add("drag-over");
 });
 
@@ -638,23 +681,44 @@ dropZone.addEventListener("dragleave", () => {
 
 dropZone.addEventListener("drop", (event) => {
   event.preventDefault();
+  event.stopPropagation();
+  markDragInteraction();
   dropZone.classList.remove("drag-over");
+  // Some browsers emit a delayed synthetic click after drop; ignore those.
+  suppressFilePickerUntil = Date.now() + 2500;
   handleFiles(event.dataTransfer.files);
 });
 
 dropZone.addEventListener("keydown", (event) => {
   if (event.key === "Enter" || event.key === " ") {
     event.preventDefault();
-    fileInput.click();
+    openFilePicker();
   }
 });
 
-dropZone.addEventListener("click", () => {
-  // Allow selecting the same file repeatedly.
-  fileInput.value = "";
+dropZone.addEventListener("click", (event) => {
+  if (Date.now() < suppressFilePickerUntil) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+  openFilePicker();
+});
+
+document.addEventListener("dragenter", () => {
+  markDragInteraction();
+});
+
+document.addEventListener("dragover", () => {
+  markDragInteraction();
+});
+
+document.addEventListener("drop", () => {
+  markDragInteraction();
 });
 
 fileInput.addEventListener("change", () => {
+  isFilePickerOpen = false;
   handleFiles(fileInput.files);
 });
 
