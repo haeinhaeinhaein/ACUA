@@ -576,4 +576,9 @@ body.about-active .app-shell {
   .stage-text {
     font-size: 1.2rem;
   }
+
+  #aboutLink {
+    padding-left: 0.76rem;
+    padding-right: 0.6rem;
+  }
 }
