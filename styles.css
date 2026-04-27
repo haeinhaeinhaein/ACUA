@@ -545,7 +545,7 @@ body.about-active .app-shell {
 
 @media (max-width: 900px) {
   .main-content {
-    align-items: flex-start;
+    align-items: center;
     padding: 1.25rem 1rem;
     overflow-y: auto;
     justify-content: center;
@@ -563,7 +563,7 @@ body.about-active .app-shell {
   .drop-zone {
     width: min(92vw, 520px);
     max-height: calc(100dvh - 210px);
-    margin-top: 1.1rem;
+    margin-top: 0;
     margin-left: auto;
     margin-right: auto;
   }
