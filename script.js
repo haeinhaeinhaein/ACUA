@@ -471,41 +471,42 @@ setWittyMuseumAddress();
 resetButton.addEventListener("click", () => {
   currentReport = null;
   uploadedImage.removeAttribute("src");
- fileInput.addEventListener('change', async (e) => {
-  const file = e.target.files; //을 붙여서 첫 번째 파일을 가져옵니다.
-  if (!file) return;
+ // 470라인 근처부터 fileInput 관련 리스너를 아래 하나로 통합하세요.
+fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files; // 단일 파일 추출
+    if (!file) return;
 
-  // 즉시 로딩 화면으로 전환
-  switchSection("loadingSection");
-  stageText.textContent = "이미지 분석 준비 중...";
+    // 즉시 로딩 화면으로 전환하여 사용자 피드백 제공
+    switchSection("loadingSection");
+    stageText.textContent = "이미지 분석 준비 중...";
 
-  let finalFile = file;
+    let finalFile = file;
 
-  // 1. HEIC 변환 로직 (아이폰 대응)
-  if (file.type === "image/heic" || file.name.toLowerCase().endsWith(".heic")) {
-    stageText.textContent = "아이폰 규격 변환 중 (HEIC to JPG)...";
-    try {
-      const convertedBlob = await heic2any({
-        blob: file,
-        toType: "image/jpeg",
-        quality: 0.8
-      });
-      finalFile = new File([convertedBlob], file.name.replace(/\.heic/i, ".jpg"), { type: "image/jpeg" });
-    } catch (error) {
-      console.error("HEIC 변환 실패:", error);
-      alert("이미지 변환 중 오류가 발생했습니다.");
-      switchSection("uploadSection");
-      return;
+    // 1. HEIC 변환 로직 (모바일/아이폰 대응)
+    if (file.type === "image/heic" || file.name.toLowerCase().endsWith(".heic")) {
+        stageText.textContent = "아이폰 규격 변환 중 (HEIC to JPG)...";
+        try {
+            const convertedBlob = await heic2any({
+                blob: file,
+                toType: "image/jpeg",
+                quality: 0.8
+            });
+            finalFile = new File([convertedBlob], file.name.replace(/\.heic/i, ".jpg"), { type: "image/jpeg" });
+        } catch (error) {
+            console.error("HEIC 변환 실패:", error);
+            alert("이미지 변환 중 오류가 발생했습니다. 일반 사진 파일을 사용해 주세요.");
+            switchSection("uploadSection");
+            return;
+        }
     }
-  }
 
-  // 2. 최종 파일을 분석 프로세스에 확실히 전달
-  if (finalFile && finalFile.type.startsWith("image/")) {
-    await processImage(finalFile);
-  } else {
-    alert("이미지 파일만 분석이 가능합니다.");
-    switchSection("uploadSection");
-  }
+    // 2. 최종 파일을 분석 프로세스에 전달
+    if (finalFile && finalFile.type.startsWith("image/")) {
+        await processImage(finalFile);
+    } else {
+        alert("이미지 파일만 분석이 가능합니다.");
+        switchSection("uploadSection"); // 단순 화면 전환만 수행
+    }
 });
 
   const openImage = target.closest("img.archive-thumb[data-id]");
