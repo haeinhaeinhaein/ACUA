@@ -274,7 +274,7 @@ function saveToArchive(report) {
   writeArchive(deduped.slice(0, ARCHIVE_LIMIT));
 }
 
-function showSection(sectionName) {
+function switchSection(sectionName) {
   uploadSection.classList.toggle("hidden", sectionName !== "upload");
   loadingSection.classList.toggle("hidden", sectionName !== "loading");
   resultSection.classList.toggle("hidden", sectionName !== "result");
@@ -427,39 +427,41 @@ dropZone.addEventListener("keydown", (event) => {
   }
 });
 
+// 470라인 근처의 모든 fileInput 관련 리스너를 지우고 아래 하나로 통합!
 fileInput.addEventListener('change', async (e) => {
     const file = e.target.files;
     if (!file) return;
 
-    // 로딩 화면으로 즉시 전환
+    // 즉시 로딩 화면으로 전환하여 사용자에게 반응 보여주기
     switchSection("loadingSection");
-    stageText.textContent = "이미지 준비 중...";
+    stageText.textContent = "이미지 분석 준비 중...";
 
     let finalFile = file;
 
-    // 2. HEIC 변환 로직 (아이폰 대응)
+    // 1. HEIC 변환 로직 (아이폰 대응 핵심)
     if (file.type === "image/heic" || file.name.toLowerCase().endsWith(".heic")) {
-        stageText.textContent = "아이폰 이미지 변환 중 (HEIC)...";
+        stageText.textContent = "아이폰 규격 변환 중 (HEIC to JPG)...";
         try {
             const convertedBlob = await heic2any({
                 blob: file,
                 toType: "image/jpeg",
                 quality: 0.8
             });
+            // 변환된 파일을 새로운 File 객체로 생성
             finalFile = new File([convertedBlob], file.name.replace(/\.heic/i, ".jpg"), { type: "image/jpeg" });
         } catch (error) {
-            console.error("HEIC 변환 에러:", error);
-            alert("이미지 변환에 실패했습니다. 일반 사진을 사용해 주세요.");
+            console.error("HEIC 변환 실패:", error);
+            alert("이미지 변환 중 오류가 발생했습니다. 일반 사진 파일을 사용해 주세요.");
             switchSection("uploadSection");
             return;
         }
     }
 
-    // 3. 분석 프로세스 시작
+    // 2. 최종 파일을 분석 프로세스에 확실히 전달
     if (finalFile.type.startsWith("image/")) {
         await processImage(finalFile);
     } else {
-        alert("이미지 파일만 업로드 가능합니다.");
+        alert("이미지 파일만 분석이 가능합니다.");
         switchSection("uploadSection");
     }
 });
@@ -469,35 +471,42 @@ setWittyMuseumAddress();
 resetButton.addEventListener("click", () => {
   currentReport = null;
   uploadedImage.removeAttribute("src");
-  fileInput.value = "";
-  showSection("upload");
-  progressBar.style.width = "0%";
-});
+ fileInput.addEventListener('change', async (e) => {
+  const file = e.target.files; //을 붙여서 첫 번째 파일을 가져옵니다.
+  if (!file) return;
 
-archiveLink.addEventListener("click", (event) => {
-  event.preventDefault();
-  renderArchiveList();
-  showSection("archive");
-});
+  // 즉시 로딩 화면으로 전환
+  switchSection("loadingSection");
+  stageText.textContent = "이미지 분석 준비 중...";
 
-archiveBackButton.addEventListener("click", () => {
-  showSection("upload");
-});
+  let finalFile = file;
 
-archiveList.addEventListener("click", (event) => {
-  const target = event.target;
-  if (!(target instanceof Element)) return;
-  const deleteButton = target.closest("button.archive-delete-button[data-id]");
-
-  if (deleteButton instanceof Element) {
-    const selectedId = deleteButton.getAttribute("data-id");
-    if (!selectedId) return;
-    const confirmed = window.confirm("이 아카이브 항목을 삭제하시겠습니까?");
-    if (!confirmed) return;
-    removeFromArchive(selectedId);
-    renderArchiveList();
-    return;
+  // 1. HEIC 변환 로직 (아이폰 대응)
+  if (file.type === "image/heic" || file.name.toLowerCase().endsWith(".heic")) {
+    stageText.textContent = "아이폰 규격 변환 중 (HEIC to JPG)...";
+    try {
+      const convertedBlob = await heic2any({
+        blob: file,
+        toType: "image/jpeg",
+        quality: 0.8
+      });
+      finalFile = new File([convertedBlob], file.name.replace(/\.heic/i, ".jpg"), { type: "image/jpeg" });
+    } catch (error) {
+      console.error("HEIC 변환 실패:", error);
+      alert("이미지 변환 중 오류가 발생했습니다.");
+      switchSection("uploadSection");
+      return;
+    }
   }
+
+  // 2. 최종 파일을 분석 프로세스에 확실히 전달
+  if (finalFile && finalFile.type.startsWith("image/")) {
+    await processImage(finalFile);
+  } else {
+    alert("이미지 파일만 분석이 가능합니다.");
+    switchSection("uploadSection");
+  }
+});
 
   const openImage = target.closest("img.archive-thumb[data-id]");
   if (!(openImage instanceof Element)) return;
