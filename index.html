@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -36,31 +37,36 @@
       </section>
 
       <section id="resultSection" class="result-section hidden">
-        <div class="result-grid">
-          <article class="artwork-panel">
-            <img id="uploadedImage" alt="Uploaded artwork preview" />
-          </article>
+        <div id="resultCaptureRoot" class="result-capture-root">
+          <div class="result-grid">
+            <article class="artwork-panel">
+              <img id="uploadedImage" alt="Uploaded artwork preview" />
+            </article>
 
-          <article class="report-panel">
-            <h1>ACUA&apos;s Report</h1>
-            <p id="professionalComment" class="professional-comment"></p>
+            <article class="report-panel">
+              <h1>ACUA&apos;s Report</h1>
+              <p id="professionalComment" class="professional-comment"></p>
 
-            <section class="metrics">
-              <div id="metricList"></div>
-            </section>
+              <section class="metrics">
+                <div id="metricList"></div>
+              </section>
 
-            <section class="analysis-body">
-              <p id="analysisText"></p>
-              <p id="comparisonText"></p>
-            </section>
+              <section class="analysis-body">
+                <p id="analysisText"></p>
+                <p id="comparisonText"></p>
+              </section>
 
-            <section class="valuation">
-              <p><strong>평점:</strong> <span id="scoreText"></span></p>
-              <p><strong>예상 감정가:</strong> <span id="valueText"></span></p>
-            </section>
-
-            <button id="resetButton" class="reset-button" type="button">Analyze New Artwork</button>
-          </article>
+              <section class="valuation">
+                <p><strong>평점:</strong> <span id="scoreText"></span></p>
+                <p><strong>예상 감정가:</strong> <span id="valueText"></span></p>
+              </section>
+            </article>
+          </div>
+        </div>
+        <div class="result-actions">
+          <button id="exportImageButton" class="export-button" type="button">Save as PNG</button>
+          <button id="exportDocButton" class="export-button" type="button">Save as HTML</button>
+          <button id="resetButton" class="reset-button" type="button">Analyze New Artwork</button>
         </div>
       </section>
 
@@ -89,6 +95,17 @@
       </p>
       <p><em>"당신의 예술은 해석될 준비가 되었습니까?"</em></p>
     </article>
+  </div>
+
+  <div id="archiveConfirmModal" class="archive-confirm-modal hidden" role="alertdialog" aria-modal="true" aria-labelledby="archiveConfirmTitle">
+    <div class="archive-confirm-backdrop" data-archive-confirm="backdrop"></div>
+    <div class="archive-confirm-panel">
+      <p id="archiveConfirmTitle" class="archive-confirm-message">부정하십니까?</p>
+      <div class="archive-confirm-actions">
+        <button type="button" id="archiveConfirmNo" class="archive-confirm-button archive-confirm-button--secondary">아니요</button>
+        <button type="button" id="archiveConfirmYes" class="archive-confirm-button">네</button>
+      </div>
+    </div>
   </div>
 
   <script src="script.js"></script>

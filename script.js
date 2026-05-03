@@ -192,6 +192,12 @@ const archiveEmptyText = document.getElementById("archiveEmptyText");
 const archiveList = document.getElementById("archiveList");
 const aboutModal = document.getElementById("aboutModal");
 const aboutCloseButton = document.getElementById("aboutCloseButton");
+const resultCaptureRoot = document.getElementById("resultCaptureRoot");
+const exportImageButton = document.getElementById("exportImageButton");
+const exportDocButton = document.getElementById("exportDocButton");
+const archiveConfirmModal = document.getElementById("archiveConfirmModal");
+const archiveConfirmYes = document.getElementById("archiveConfirmYes");
+const archiveConfirmNo = document.getElementById("archiveConfirmNo");
 
 const ARCHIVE_STORAGE_KEY = "acua-analysis-archive";
 const ARCHIVE_LIMIT = 30;
@@ -336,6 +342,165 @@ function applyReport(report) {
   currentReport = report;
 }
 
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function buildReportDocumentHtml(report) {
+  const created = report.createdAt
+    ? new Intl.DateTimeFormat("ko-KR", { dateStyle: "full", timeStyle: "short" }).format(new Date(report.createdAt))
+    : new Intl.DateTimeFormat("ko-KR", { dateStyle: "full", timeStyle: "short" }).format(new Date());
+  const metricsHtml = metricLabels
+    .map((label, i) => {
+      const v = report.metricValues[i];
+      return `<li><strong>${escapeHtml(label)}</strong>: ${escapeHtml(String(v))}%</li>`;
+    })
+    .join("");
+  return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ACUA Report</title>
+<style>
+  body { font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif; margin: 2rem auto; max-width: 720px; padding: 0 1rem; color: #111111; line-height: 1.55; }
+  h1 { font-size: 1.35rem; margin: 0 0 1rem; font-weight: 700; }
+  h2 { font-size: 0.95rem; margin: 1.2rem 0 0.4rem; font-weight: 700; }
+  .meta { color: #777777; font-size: 0.85rem; margin-bottom: 1.25rem; }
+  img { max-width: 100%; height: auto; border: 1px solid #111111; display: block; margin: 0 0 1.25rem; }
+  .comment { font-style: italic; margin: 0 0 1rem; }
+  .analysis p { margin: 0 0 0.75rem; font-weight: 500; }
+  ul { padding-left: 1.2rem; margin: 0.5rem 0 1rem; }
+  .valuation { margin-top: 1.25rem; }
+  .valuation p { margin: 0.35rem 0; }
+  .footer { margin-top: 2rem; font-size: 0.75rem; color: #777777; }
+</style>
+</head>
+<body>
+  <h1>ACUA&apos;s Report</h1>
+  <p class="meta">저장 일시: ${escapeHtml(created)}</p>
+  <img src="${report.imageSrc}" alt="작품 이미지" />
+  <p class="comment">${escapeHtml(report.professionalComment)}</p>
+  <h2>분석 지표</h2>
+  <ul>${metricsHtml}</ul>
+  <div class="analysis">
+    <p>${escapeHtml(report.analysis)}</p>
+    <p>${escapeHtml(report.comparison)}</p>
+  </div>
+  <div class="valuation">
+    <p><strong>평점:</strong> ${escapeHtml(`${Number(report.score).toFixed(1)}/10`)}</p>
+    <p><strong>예상 감정가:</strong> ${escapeHtml(report.value)}</p>
+  </div>
+  <p class="footer">© ACUA — 브라우저 메뉴에서 인쇄하여 PDF로 저장할 수 있습니다.</p>
+</body>
+</html>`;
+}
+
+function triggerDownload(url, filename) {
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.rel = "noopener";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+}
+
+/** 다운로드 시점 로컬 시간 (예: acua-report-20260504-143052-847) — 파일명에 사용 가능한 문자만 */
+function buildExportBasenameFromSaveTime() {
+  const d = new Date();
+  const pad = (n, width = 2) => String(n).padStart(width, "0");
+  return `acua-report-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}-${pad(d.getMilliseconds(), 3)}`;
+}
+
+function ensureImageLoaded(img) {
+  if (!(img instanceof HTMLImageElement)) {
+    return Promise.reject(new Error("이미지 요소가 없습니다."));
+  }
+  if (!img.getAttribute("src")) {
+    return Promise.reject(new Error("이미지가 없습니다."));
+  }
+  if (img.complete) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error("이미지를 불러오지 못했습니다."));
+  });
+}
+
+/** PNG 저장 시 한 변 기준으로 더할 여백(캔버스 픽셀). scale 2 기준 약 32px 화면 여백에 해당 */
+const EXPORT_IMAGE_MARGIN_PX = 64;
+
+function canvasWithUniformMargin(source, marginPx, fillColor) {
+  const m = Math.max(0, Math.round(marginPx));
+  const out = document.createElement("canvas");
+  out.width = source.width + m * 2;
+  out.height = source.height + m * 2;
+  const ctx = out.getContext("2d");
+  if (!ctx) return source;
+  ctx.fillStyle = fillColor;
+  ctx.fillRect(0, 0, out.width, out.height);
+  ctx.drawImage(source, m, m);
+  return out;
+}
+
+async function exportReportAsImage() {
+  if (!currentReport) {
+    window.alert("저장할 보고서가 없습니다.");
+    return;
+  }
+  if (!(resultCaptureRoot instanceof HTMLElement)) return;
+  if (typeof html2canvas !== "function") {
+    window.alert("이미지 저장 기능을 불러오지 못했습니다. 네트워크 연결을 확인해 주세요.");
+    return;
+  }
+  try {
+    await ensureImageLoaded(uploadedImage);
+  } catch (error) {
+    window.alert(error.message || "이미지를 준비할 수 없습니다.");
+    return;
+  }
+  try {
+    const rawCanvas = await html2canvas(resultCaptureRoot, {
+      backgroundColor: "#ffffff",
+      scale: 2,
+      useCORS: true,
+      logging: false
+    });
+    const canvas = canvasWithUniformMargin(rawCanvas, EXPORT_IMAGE_MARGIN_PX, "#ffffff");
+    await new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          reject(new Error("PNG 데이터를 생성하지 못했습니다."));
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        triggerDownload(url, `${buildExportBasenameFromSaveTime()}.png`);
+        window.setTimeout(() => URL.revokeObjectURL(url), 4000);
+        resolve();
+      }, "image/png");
+    });
+  } catch (error) {
+    console.error("이미지 저장 실패:", error);
+    window.alert(`이미지 저장에 실패했습니다.\n${error.message || "알 수 없는 오류"}`);
+  }
+}
+
+function exportReportAsDocument() {
+  if (!currentReport) {
+    window.alert("저장할 보고서가 없습니다.");
+    return;
+  }
+  const html = buildReportDocumentHtml(currentReport);
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  triggerDownload(url, `${buildExportBasenameFromSaveTime()}.html`);
+  window.setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
 function readArchive() {
   try {
     const raw = localStorage.getItem(ARCHIVE_STORAGE_KEY);
@@ -425,6 +590,31 @@ function openAboutModal() {
 function closeAboutModal() {
   aboutModal.classList.remove("is-visible");
   document.body.classList.remove("about-active");
+}
+
+let archiveConfirmResolve = null;
+
+function closeArchiveDeleteConfirm(value) {
+  const resolve = archiveConfirmResolve;
+  if (!resolve) return;
+  archiveConfirmResolve = null;
+  archiveConfirmModal.classList.remove("is-visible");
+  window.setTimeout(() => {
+    archiveConfirmModal.classList.add("hidden");
+    resolve(Boolean(value));
+  }, 200);
+}
+
+function openArchiveDeleteConfirm() {
+  return new Promise((resolve) => {
+    archiveConfirmResolve = resolve;
+    archiveConfirmModal.classList.remove("hidden");
+    archiveConfirmModal.offsetHeight;
+    requestAnimationFrame(() => {
+      archiveConfirmModal.classList.add("is-visible");
+      archiveConfirmYes.focus();
+    });
+  });
 }
 
 function renderArchiveList() {
@@ -734,6 +924,14 @@ resetButton.addEventListener("click", () => {
   progressBar.style.width = "0%";
 });
 
+exportImageButton.addEventListener("click", () => {
+  exportReportAsImage();
+});
+
+exportDocButton.addEventListener("click", () => {
+  exportReportAsDocument();
+});
+
 homeLink.addEventListener("click", async () => {
   analysisRunId += 1;
   currentReport = null;
@@ -754,7 +952,7 @@ archiveBackButton.addEventListener("click", () => {
   showSection("upload");
 });
 
-archiveList.addEventListener("click", (event) => {
+archiveList.addEventListener("click", async (event) => {
   const target = event.target;
   if (!(target instanceof Element)) return;
   const deleteButton = target.closest("button.archive-delete-button[data-id]");
@@ -762,7 +960,7 @@ archiveList.addEventListener("click", (event) => {
   if (deleteButton instanceof Element) {
     const selectedId = deleteButton.getAttribute("data-id");
     if (!selectedId) return;
-    const confirmed = window.confirm("이 아카이브 항목을 삭제하시겠습니까?");
+    const confirmed = await openArchiveDeleteConfirm();
     if (!confirmed) return;
     removeFromArchive(selectedId);
     renderArchiveList();
@@ -798,7 +996,28 @@ aboutModal.addEventListener("click", (event) => {
   }
 });
 
+archiveConfirmModal.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return;
+  if (target.dataset.archiveConfirm === "backdrop") {
+    closeArchiveDeleteConfirm(false);
+  }
+});
+
+archiveConfirmYes.addEventListener("click", () => {
+  closeArchiveDeleteConfirm(true);
+});
+
+archiveConfirmNo.addEventListener("click", () => {
+  closeArchiveDeleteConfirm(false);
+});
+
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && archiveConfirmModal.classList.contains("is-visible")) {
+    event.preventDefault();
+    closeArchiveDeleteConfirm(false);
+    return;
+  }
   if (event.key === "Escape" && aboutModal.classList.contains("is-visible")) {
     closeAboutModal();
   }
