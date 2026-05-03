@@ -408,12 +408,27 @@ function buildReportDocumentHtml(report) {
 }
 
 /**
- * 모바일 Safari 등에서 <a download>가 동작하지 않을 수 있어 Web Share(파일) → 다운로드 링크 → 새 탭 순으로 시도합니다.
+ * 터치 우선 기기(모바일)에서만 true — PNG는 데스크톱에서 공유 시트 없이 바로 파일 저장.
  */
-async function offerFileToUser(blob, filename, mimeHint) {
+function shouldTryWebShareFirstForPng() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  return window.matchMedia("(pointer: coarse)").matches;
+}
+
+/**
+ * 모바일 Safari 등에서 <a download>가 동작하지 않을 수 있어 Web Share(파일) → 다운로드 링크 → 새 탭 순으로 시도합니다.
+ * @param {{ tryWebShare?: boolean }} [options] — tryWebShare가 false면 공유를 건너뛰고 곧바로 다운로드(데스크톱 PNG 등).
+ */
+async function offerFileToUser(blob, filename, mimeHint, options = {}) {
+  const tryWebShare = options.tryWebShare !== false;
   const mime = blob.type || mimeHint || "application/octet-stream";
 
-  if (typeof navigator !== "undefined" && typeof navigator.share === "function" && typeof File !== "undefined") {
+  if (
+    tryWebShare &&
+    typeof navigator !== "undefined" &&
+    typeof navigator.share === "function" &&
+    typeof File !== "undefined"
+  ) {
     try {
       const file = new File([blob], filename, { type: mime });
       const payload = { files: [file] };
@@ -533,7 +548,9 @@ async function exportReportAsImage() {
         else resolve(b);
       }, "image/png");
     });
-    await offerFileToUser(blob, `${buildExportBasenameFromSaveTime()}.png`, "image/png");
+    await offerFileToUser(blob, `${buildExportBasenameFromSaveTime()}.png`, "image/png", {
+      tryWebShare: shouldTryWebShareFirstForPng()
+    });
   } catch (error) {
     console.error("이미지 저장 실패:", error);
     window.alert(`이미지 저장에 실패했습니다.\n${error.message || "알 수 없는 오류"}`);
