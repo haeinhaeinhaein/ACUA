@@ -374,9 +374,14 @@ function buildReportDocumentHtml(report) {
   img { max-width: 100%; height: auto; border: 1px solid #111111; display: block; margin: 0 0 1.25rem; }
   .comment { font-style: italic; margin: 0 0 1rem; }
   .analysis p { margin: 0 0 0.75rem; font-weight: 500; }
+  .doc-metrics { margin: 2.25rem 0; }
+  .doc-metrics h2 { margin: 0 0 0.4rem; font-size: 0.95rem; font-weight: 700; }
+  .doc-metrics ul { margin: 0.5rem 0 0; padding-left: 1.2rem; }
   ul { padding-left: 1.2rem; margin: 0.5rem 0 1rem; }
-  .valuation { margin-top: 1.25rem; }
-  .valuation p { margin: 0.35rem 0; }
+  .valuation { margin: 2.35rem 0; padding: 1.35rem 1.4rem; border: 1px solid #111111; background: #fafafa; box-sizing: border-box; }
+  .valuation p { margin: 0.7rem 0; }
+  .valuation p:first-child { margin-top: 0; }
+  .valuation p:last-child { margin-bottom: 0; }
   .footer { margin-top: 2rem; font-size: 0.75rem; color: #777777; }
 </style>
 </head>
@@ -385,8 +390,10 @@ function buildReportDocumentHtml(report) {
   <p class="meta">저장 일시: ${escapeHtml(created)}</p>
   <img src="${report.imageSrc}" alt="작품 이미지" />
   <p class="comment">${escapeHtml(report.professionalComment)}</p>
-  <h2>분석 지표</h2>
-  <ul>${metricsHtml}</ul>
+  <section class="doc-metrics">
+    <h2>분석 지표</h2>
+    <ul>${metricsHtml}</ul>
+  </section>
   <div class="analysis">
     <p>${escapeHtml(report.analysis)}</p>
     <p>${escapeHtml(report.comparison)}</p>
@@ -395,7 +402,7 @@ function buildReportDocumentHtml(report) {
     <p><strong>평점:</strong> ${escapeHtml(`${Number(report.score).toFixed(1)}/10`)}</p>
     <p><strong>예상 감정가:</strong> ${escapeHtml(report.value)}</p>
   </div>
-  <p class="footer">© ACUA — 브라우저 메뉴에서 인쇄하여 PDF로 저장할 수 있습니다.</p>
+  <p class="footer">© ACUA Art Analysis System</p>
 </body>
 </html>`;
 }
