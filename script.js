@@ -400,14 +400,44 @@ function buildReportDocumentHtml(report) {
 </html>`;
 }
 
-function triggerDownload(url, filename) {
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.rel = "noopener";
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
+/**
+ * 모바일 Safari 등에서 <a download>가 동작하지 않을 수 있어 Web Share(파일) → 다운로드 링크 → 새 탭 순으로 시도합니다.
+ */
+async function offerFileToUser(blob, filename, mimeHint) {
+  const mime = blob.type || mimeHint || "application/octet-stream";
+
+  if (typeof navigator !== "undefined" && typeof navigator.share === "function" && typeof File !== "undefined") {
+    try {
+      const file = new File([blob], filename, { type: mime });
+      const payload = { files: [file] };
+      const canTryShare = typeof navigator.canShare !== "function" || navigator.canShare(payload);
+      if (canTryShare) {
+        try {
+          await navigator.share(payload);
+          return;
+        } catch (err) {
+          if (err && err.name === "AbortError") return;
+        }
+      }
+    } catch (_) {
+      /* File/검증 실패 시 아래 방식으로 진행 */
+    }
+  }
+
+  const url = URL.createObjectURL(blob);
+  try {
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.rel = "noopener";
+    anchor.style.display = "none";
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+  } catch (_) {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+  window.setTimeout(() => URL.revokeObjectURL(url), 120000);
 }
 
 /** 다운로드 시점 로컬 시간 (예: acua-report-20260504-143052-847) — 파일명에 사용 가능한 문자만 */
@@ -433,6 +463,14 @@ function ensureImageLoaded(img) {
 
 /** PNG 저장 시 한 변 기준으로 더할 여백(캔버스 픽셀). scale 2 기준 약 32px 화면 여백에 해당 */
 const EXPORT_IMAGE_MARGIN_PX = 64;
+
+function getHtml2CanvasScale() {
+  if (typeof window === "undefined") return 2;
+  const w = window.innerWidth || 1024;
+  if (w <= 420) return 1.35;
+  if (w <= 720) return 1.65;
+  return 2;
+}
 
 function canvasWithUniformMargin(source, marginPx, fillColor) {
   const m = Math.max(0, Math.round(marginPx));
@@ -464,41 +502,45 @@ async function exportReportAsImage() {
     return;
   }
   try {
+    try {
+      resultCaptureRoot.scrollIntoView({ block: "nearest", behavior: "instant" });
+    } catch (_) {
+      resultCaptureRoot.scrollIntoView();
+    }
+    await new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(resolve));
+    });
+
     const rawCanvas = await html2canvas(resultCaptureRoot, {
       backgroundColor: "#ffffff",
-      scale: 2,
+      scale: getHtml2CanvasScale(),
       useCORS: true,
+      allowTaint: true,
+      foreignObjectRendering: false,
       logging: false
     });
     const canvas = canvasWithUniformMargin(rawCanvas, EXPORT_IMAGE_MARGIN_PX, "#ffffff");
-    await new Promise((resolve, reject) => {
-      canvas.toBlob((blob) => {
-        if (!blob) {
-          reject(new Error("PNG 데이터를 생성하지 못했습니다."));
-          return;
-        }
-        const url = URL.createObjectURL(blob);
-        triggerDownload(url, `${buildExportBasenameFromSaveTime()}.png`);
-        window.setTimeout(() => URL.revokeObjectURL(url), 4000);
-        resolve();
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob((b) => {
+        if (!b) reject(new Error("PNG 데이터를 생성하지 못했습니다."));
+        else resolve(b);
       }, "image/png");
     });
+    await offerFileToUser(blob, `${buildExportBasenameFromSaveTime()}.png`, "image/png");
   } catch (error) {
     console.error("이미지 저장 실패:", error);
     window.alert(`이미지 저장에 실패했습니다.\n${error.message || "알 수 없는 오류"}`);
   }
 }
 
-function exportReportAsDocument() {
+async function exportReportAsDocument() {
   if (!currentReport) {
     window.alert("저장할 보고서가 없습니다.");
     return;
   }
   const html = buildReportDocumentHtml(currentReport);
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  triggerDownload(url, `${buildExportBasenameFromSaveTime()}.html`);
-  window.setTimeout(() => URL.revokeObjectURL(url), 4000);
+  await offerFileToUser(blob, `${buildExportBasenameFromSaveTime()}.html`, "text/html");
 }
 
 function readArchive() {
@@ -596,23 +638,28 @@ let archiveConfirmResolve = null;
 
 function closeArchiveDeleteConfirm(value) {
   const resolve = archiveConfirmResolve;
-  if (!resolve) return;
   archiveConfirmResolve = null;
+  document.body.classList.remove("archive-confirm-active");
   archiveConfirmModal.classList.remove("is-visible");
   window.setTimeout(() => {
     archiveConfirmModal.classList.add("hidden");
-    resolve(Boolean(value));
+    if (resolve) resolve(Boolean(value));
   }, 200);
 }
 
 function openArchiveDeleteConfirm() {
   return new Promise((resolve) => {
     archiveConfirmResolve = resolve;
+    document.body.classList.add("archive-confirm-active");
     archiveConfirmModal.classList.remove("hidden");
     archiveConfirmModal.offsetHeight;
     requestAnimationFrame(() => {
       archiveConfirmModal.classList.add("is-visible");
-      archiveConfirmYes.focus();
+      try {
+        archiveConfirmYes.focus({ preventScroll: true });
+      } catch (_) {
+        archiveConfirmYes.focus();
+      }
     });
   });
 }

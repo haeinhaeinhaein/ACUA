@@ -20,6 +20,12 @@ body {
   font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
+body.archive-confirm-active {
+  overflow: hidden;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
 .app-shell {
   min-height: 100vh;
   min-height: 100svh;
@@ -408,6 +414,14 @@ body.about-active .app-shell {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+  display: grid;
+  grid-template: "stack" minmax(0, 1fr) / minmax(0, 1fr);
+  padding: max(0.75rem, env(safe-area-inset-top, 0px)) max(0.75rem, env(safe-area-inset-right, 0px))
+    max(0.75rem, env(safe-area-inset-bottom, 0px)) max(0.75rem, env(safe-area-inset-left, 0px));
+  box-sizing: border-box;
+  min-height: 100dvh;
+  min-height: 100svh;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .archive-confirm-modal.is-visible {
@@ -416,16 +430,20 @@ body.about-active .app-shell {
 }
 
 .archive-confirm-backdrop {
-  position: absolute;
-  inset: 0;
+  grid-area: stack;
+  align-self: stretch;
+  justify-self: stretch;
   background: rgba(17, 17, 17, 0.35);
 }
 
 .archive-confirm-panel {
+  grid-area: stack;
+  place-self: center;
   position: relative;
   z-index: 1;
-  width: min(360px, calc(100% - 2rem));
-  margin: 32vh auto 0;
+  width: min(360px, 100%);
+  max-height: min(88dvh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 1.5rem));
+  margin: 0;
   border: 1px solid #111111;
   background: #ffffff;
   padding: 1.35rem 1.4rem 1.25rem;
@@ -433,6 +451,8 @@ body.about-active .app-shell {
   opacity: 0;
   transform: translateY(10px);
   transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1), transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .archive-confirm-modal.is-visible .archive-confirm-panel {
@@ -464,6 +484,8 @@ body.about-active .app-shell {
   font-size: 0.9rem;
   cursor: pointer;
   min-width: 4.5rem;
+  touch-action: manipulation;
+  min-height: 44px;
 }
 
 .archive-confirm-button:hover {
@@ -664,6 +686,34 @@ body.about-active .app-shell {
 
   .result-grid {
     grid-template-columns: 1fr;
+  }
+
+  .result-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .result-actions .export-button,
+  .result-actions .reset-button {
+    width: 100%;
+    min-height: 48px;
+    touch-action: manipulation;
+  }
+
+  .archive-confirm-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .archive-confirm-button {
+    width: 100%;
+    min-height: 48px;
+  }
+
+  .archive-delete-button {
+    touch-action: manipulation;
+    min-height: 36px;
+    min-width: 36px;
   }
 
   .drop-zone {
