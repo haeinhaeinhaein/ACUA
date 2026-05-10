@@ -646,6 +646,87 @@ function formatArchiveDate(ts) {
   }).format(new Date(ts));
 }
 
+function formatGlobalFeedDate(createdAt) {
+  if (!createdAt) return "";
+  const date =
+    typeof createdAt.toDate === "function"
+      ? createdAt.toDate()
+      : createdAt instanceof Date
+        ? createdAt
+        : new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("ko-KR", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(date);
+}
+
+function renderGlobalArchiveCards(items) {
+  const rail = document.getElementById("globalArchiveRail");
+  if (!rail) return;
+  rail.replaceChildren();
+
+  items.forEach((item) => {
+    const card = document.createElement("article");
+    card.className = "global-archive-card";
+
+    const thumbWrap = document.createElement("div");
+    thumbWrap.className = "global-archive-thumb-wrap";
+    const img = document.createElement("img");
+    img.className = "global-archive-thumb";
+    img.alt = "";
+    if (item.imageUrl) img.src = item.imageUrl;
+    img.loading = "lazy";
+    thumbWrap.appendChild(img);
+
+    const body = document.createElement("div");
+    body.className = "global-archive-card-body";
+
+    const scoreEl = document.createElement("div");
+    scoreEl.className = "global-archive-score";
+    scoreEl.textContent = item.score != null ? `${Number(item.score).toFixed(1)} / 10` : "—";
+
+    const timeEl = document.createElement("div");
+    timeEl.className = "global-archive-time";
+    timeEl.textContent = formatGlobalFeedDate(item.createdAt);
+
+    const excerpt = document.createElement("p");
+    excerpt.className = "global-archive-excerpt";
+    const comment = item.professionalComment || "";
+    excerpt.textContent = comment.length > 120 ? `${comment.slice(0, 120)}…` : comment;
+
+    body.appendChild(scoreEl);
+    body.appendChild(timeEl);
+    body.appendChild(excerpt);
+    card.appendChild(thumbWrap);
+    card.appendChild(body);
+    rail.appendChild(card);
+  });
+}
+
+async function initGlobalArchiveFeed() {
+  const rail = document.getElementById("globalArchiveRail");
+  const status = document.getElementById("globalArchiveStatus");
+  if (!rail || !status) return;
+
+  if (!window.ACUA_FIREBASE || !window.ACUA_FIREBASE.ready) {
+    rail.replaceChildren();
+    status.textContent = "Firebase를 연결하면 전 세계 참가자의 작품이 여기 표시됩니다.";
+    return;
+  }
+
+  status.textContent = "불러오는 중…";
+  try {
+    const items = await window.ACUA_FIREBASE.fetchGlobalArchive(10);
+    renderGlobalArchiveCards(items);
+    status.textContent = items.length ? "" : "아직 공유된 작품이 없습니다.";
+  } catch (error) {
+    console.warn("Global Archive 로드 실패:", error);
+    rail.replaceChildren();
+    status.textContent = "글로벌 아카이브를 불러오지 못했습니다.";
+  }
+}
+
 function openAboutModal() {
   document.body.classList.add("about-active");
   requestAnimationFrame(() => {
@@ -873,9 +954,11 @@ async function processImage(file) {
 
     const report = buildReportData(imageSrc);
     applyReport(report);
+    let reportForCloud = report;
     try {
       const archiveReport = await createArchiveReport(report);
       trySaveToArchive(archiveReport);
+      reportForCloud = archiveReport;
     } catch (archiveError) {
       // Retry once with a much smaller preview to avoid localStorage quota failures.
       try {
@@ -883,14 +966,23 @@ async function processImage(file) {
           maxLongEdge: 900,
           quality: 0.62
         });
-        trySaveToArchive({
+        const fallbackReport = {
           ...report,
           imageSrc: fallbackImageSrc
-        });
+        };
+        trySaveToArchive(fallbackReport);
+        reportForCloud = fallbackReport;
       } catch (retryError) {
         // Archive save should never block showing analysis result.
         console.warn("아카이브 저장 실패:", retryError || archiveError);
       }
+    }
+
+    if (window.ACUA_FIREBASE && window.ACUA_FIREBASE.ready) {
+      window.ACUA_FIREBASE
+        .saveReport(reportForCloud)
+        .then(() => initGlobalArchiveFeed())
+        .catch((cloudError) => console.warn("Firebase 업로드 실패:", cloudError));
     }
 
     showSection("result");
@@ -1093,3 +1185,5 @@ document.addEventListener("keydown", (event) => {
     closeAboutModal();
   }
 });
+
+initGlobalArchiveFeed();
